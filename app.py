@@ -1,7 +1,10 @@
-"""Interfaz grafica (Streamlit). Sin SQL: solo consume repository."""
+"""Interfaz grafica (Streamlit). Sin SQL: solo consume repository,
+importador (carga de CSV con pandas) y estadisticas (tendencia central)."""
 import streamlit as st
 from db import init_db
 import repository as repo
+import importador
+import estadisticas as stats
 
 st.set_page_config(page_title="F1 Stratos Manager", layout="wide")
 init_db()
@@ -238,6 +241,72 @@ def vista_circuitos():
             st.rerun()
 
 
+# =========================== ESTADISTICAS ===========================
+def vista_estadisticas():
+    st.header("Estadisticas - Tendencia central")
+    tab_import, tab_analisis = st.tabs(["Importar CSV", "Analisis"])
+
+    # --- Parte 2: importar el dataset propio con pandas.read_csv() ---
+    with tab_import:
+        st.caption("Los CSV de la carpeta datos/ se leen con pandas.read_csv() y "
+                   "cada fila se da de alta con las mismas funciones del CRUD.")
+        nombre_csv = st.selectbox("Dataset a importar",
+                                  list(importador.DATASETS_CSV.keys()), key="csv_ds")
+        config_csv = importador.DATASETS_CSV[nombre_csv]
+        try:
+            df_csv = importador.leer_csv(config_csv["ruta"])
+        except FileNotFoundError:
+            st.error(f"No se encontro el archivo {config_csv['ruta']}.")
+        else:
+            st.write(f"{len(df_csv)} filas leidas del CSV.")
+            st.dataframe(df_csv, use_container_width=True)
+            if st.button(f"Importar {nombre_csv.lower()} a la base", key="btn_csv"):
+                insertados, omitidos = config_csv["importar"](config_csv["ruta"])
+                if insertados:
+                    st.success(f"Se dieron de alta {insertados} registros nuevos. "
+                               f"Omitidos por estar repetidos: {omitidos}.")
+                else:
+                    st.info(f"No se agrego nada: los {omitidos} registros del CSV "
+                            "ya estaban en la base.")
+
+    # --- Parte 3: media, mediana y moda calculadas con pandas ---
+    with tab_analisis:
+        nombre_ds = st.selectbox("Datos a analizar",
+                                 list(stats.DATASETS.keys()), key="stats_ds")
+        config = stats.DATASETS[nombre_ds]
+        df = stats.cargar_dataframe(nombre_ds)
+        if df.empty:
+            st.info("No hay registros cargados. Importa el CSV desde la pestania anterior.")
+            return
+        st.caption(f"{len(df)} registros leidos de la base con pandas.read_sql().")
+
+        resumen = stats.tendencia_central(df, config["columna_numerica"])
+        if resumen is None:
+            st.info("La columna numerica no tiene valores para analizar.")
+            return
+
+        st.subheader(f"{config['etiqueta_numerica']} ({config['unidad']})")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Media", stats.formatear(resumen["media"]))
+        c2.metric("Mediana", stats.formatear(resumen["mediana"]))
+        c3.metric("Moda", stats.texto_moda(resumen))
+        st.caption(f"Minimo {stats.formatear(resumen['minimo'])} - "
+                   f"maximo {stats.formatear(resumen['maximo'])} "
+                   f"sobre {resumen['n']} registros.")
+
+        st.markdown("**Interpretacion**")
+        st.info(stats.interpretar(resumen, config["etiqueta_numerica"], config["unidad"]))
+
+        modas_texto, frecuencia = stats.moda_categorica(df, config["columna_categorica"])
+        if modas_texto:
+            st.markdown(f"**Moda de {config['etiqueta_categorica'].lower()}:** "
+                        f"{', '.join(modas_texto)} "
+                        f"({frecuencia} de {len(df)} registros).")
+
+        with st.expander("Ver los datos analizados"):
+            st.dataframe(df, use_container_width=True)
+
+
 # =============================== MAIN ===============================
 st.title("F1 Stratos Manager - ORT Racing Team")
 
@@ -246,11 +315,14 @@ if st.sidebar.button("Cargar datos de ejemplo"):
     repo.seed()
     st.sidebar.success("Datos demo cargados.")
 
-seccion = st.sidebar.radio("Modulo", ["Pilotos", "Monoplazas", "Calendario"])
+seccion = st.sidebar.radio("Modulo",
+                           ["Pilotos", "Monoplazas", "Calendario", "Estadisticas"])
 
 if seccion == "Pilotos":
     vista_pilotos()
 elif seccion == "Monoplazas":
     vista_monoplazas()
-else:
+elif seccion == "Calendario":
     vista_circuitos()
+else:
+    vista_estadisticas()
