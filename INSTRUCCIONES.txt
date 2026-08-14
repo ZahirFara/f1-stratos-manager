@@ -1,0 +1,220 @@
+====================================================================
+ F1 STRATOS MANAGER - ORT Racing Team
+ Ampliacion del Integrador: datos propios y tendencia central
+====================================================================
+
+ Integrantes: [completar]
+ Materia: Estadistica y Datos con Python - 5to Anio
+
+ Repositorio: https://github.com/ZahirFara/f1-stratos-manager
+
+
+--------------------------------------------------------------------
+ 1. COMO INICIAR LA APLICACION
+--------------------------------------------------------------------
+
+Requisitos: Python 3.10 o superior.
+
+Parados en la carpeta del proyecto, desde la terminal:
+
+    pip install -r requirements.txt
+    python -m streamlit run app.py
+
+La app se abre sola en el navegador, en http://localhost:8501
+
+NOTA: si el comando "streamlit run app.py" da el error "no se reconoce
+como nombre de un cmdlet", usar la forma "python -m streamlit run app.py"
+como figura arriba. Pasa cuando la carpeta Scripts de Python no esta
+en el PATH de Windows; con "python -m" se evita el problema.
+
+Para cerrar la aplicacion: Ctrl+C en la terminal.
+
+La base de datos (stratos.db) se crea sola la primera vez que se abre
+la app, vacia. Los datos se cargan importando los CSV (ver punto 3).
+
+
+--------------------------------------------------------------------
+ 2. ARCHIVOS DEL PROYECTO
+--------------------------------------------------------------------
+
+Del trabajo original:
+
+    db.py             Conexion a SQLite y creacion de las tablas.
+    models.py         Clases POO: Piloto, Monoplaza, Circuito.
+    repository.py     Capa de datos: CRUD completo (todo el SQL).
+    app.py            Interfaz Streamlit.
+
+Agregados en esta ampliacion:
+
+    datos/circuitos.csv   Dataset propio: 22 circuitos.
+    datos/pilotos.csv     Dataset propio: 18 pilotos.
+    importador.py         Lee los CSV con pandas y da de alta cada fila.
+    estadisticas.py       Calcula media, mediana y moda con pandas.
+
+En app.py se agrego la seccion "Estadisticas" del menu lateral, que
+tiene dos pestanias: "Importar CSV" y "Analisis".
+
+La separacion de capas se mantiene: el SQL sigue estando unicamente en
+repository.py y db.py. importador.py no escribe SQL, llama a las
+funciones de alta que ya existian.
+
+
+--------------------------------------------------------------------
+ 3. COMO COMPROBAR QUE LA CONSIGNA ESTA COMPLETA
+--------------------------------------------------------------------
+
+Los valores que figuran abajo son los que se obtienen arrancando con
+la base vacia (recien clonado el repositorio) e importando los dos CSV.
+
+
+PARTE 1 - Dataset propio (CSV)
+------------------------------
+
+Abrir las dos carpetas/archivos y verificar:
+
+    datos/circuitos.csv   22 filas + encabezado
+                          Columnas: nombre_gp, pais, longitud_km,
+                          tipo_pista  (las mismas de la tabla circuitos)
+                          Columna numerica: longitud_km
+
+    datos/pilotos.csv     18 filas + encabezado
+                          Columnas: nombre, apellido, nacionalidad,
+                          edad  (las mismas de la tabla pilotos)
+                          Columna numerica: edad
+
+La consigna pide un minimo de 10 a 15 registros: hay 22 y 18.
+
+Hay valores repetidos a proposito en las columnas numericas, para que
+la moda tenga sentido:
+    - longitud_km 5.412 aparece 3 veces (Bahrein, Miami y Qatar)
+    - edad 28 aparece 3 veces (Verstappen, Leclerc y Russell)
+
+
+PARTE 2 - Importar el CSV a la aplicacion
+-----------------------------------------
+
+En la app: menu lateral -> Estadisticas -> pestania "Importar CSV"
+
+  a) Con "Circuitos" seleccionado en el desplegable, se muestra la
+     vista previa del archivo y el texto "22 filas leidas del CSV".
+     Apretar el boton "Importar circuitos a la base".
+     Resultado esperado:
+         "Se dieron de alta 22 registros nuevos. Omitidos por estar
+          repetidos: 0."
+
+  b) Cambiar el desplegable a "Pilotos" ("18 filas leidas del CSV") y
+     apretar "Importar pilotos a la base".
+     Resultado esperado:
+         "Se dieron de alta 18 registros nuevos. Omitidos por estar
+          repetidos: 0."
+
+  c) VERIFICAR EN LAS VISTAS DE LISTADO (esto es lo que pide la
+     consigna despues de correr la importacion):
+
+     Menu lateral -> Calendario -> pestania "Listado"
+         Deben aparecer los 22 circuitos: GP Bahrein, GP Arabia
+         Saudita, GP Belgica, GP Las Vegas, GP Singapur, etc.
+         El filtro "Filtrar por tipo de pista" sigue funcionando.
+
+     Menu lateral -> Pilotos -> pestania "Listado"
+         Deben aparecer los 18 pilotos: Leclerc, Norris, Piastri,
+         Alonso, Antonelli, etc.
+         La columna Categoria calcula bien segun la edad:
+         Antonelli (19) = Junior, Leclerc (28) = Senior,
+         Alonso (44) = Veterano.
+
+  d) Prueba adicional: volver a apretar "Importar circuitos a la base"
+     una segunda vez. Debe responder:
+         "No se agrego nada: los 22 registros del CSV ya estaban en
+          la base."
+     La importacion no duplica registros, se puede correr mas de una vez.
+
+  Como esta hecho: importador.py lee el archivo con pandas.read_csv()
+  y recorre el DataFrame con un for, llamando en cada vuelta a la
+  funcion de alta que ya existia en repository.py (crear_circuito o
+  crear_piloto). No se usa insert masivo.
+
+
+PARTE 3 - Medidas de tendencia central
+--------------------------------------
+
+En la app: menu lateral -> Estadisticas -> pestania "Analisis"
+
+Los datos se leen de la base de datos con pandas.read_sql().
+
+  Con "Circuitos" seleccionado (columna longitud_km, en km):
+
+      Registros leidos ....... 22
+      Media .................. 5.131
+      Mediana ................ 5.279
+      Moda ................... 5.412
+      Minimo / Maximo ........ 3.337 / 7.004
+      Moda de tipo de pista .. Mixto (7 de 22)
+
+  Con "Pilotos" seleccionado (columna edad, en anios):
+
+      Registros leidos ....... 18
+      Media .................. 27.278
+      Mediana ................ 27
+      Moda ................... 28
+      Minimo / Maximo ........ 19 / 44
+      Moda de nacionalidad ... Reino Unido (4 de 18)
+
+Debajo de los tres valores aparece el parrafo de interpretacion, en el
+recuadro celeste. No esta escrito a mano: se arma en base a los numeros
+calculados (compara la media contra la mediana y mira cuantas veces se
+repite la moda), asi que si cambian los datos cambia el texto.
+
+Al final de la pestania, el desplegable "Ver los datos analizados"
+muestra la tabla que Pandas leyo de la base, para verificar que el
+calculo se hizo sobre los datos reales.
+
+ACLARACION SOBRE LOS NUMEROS: si antes de importar se aprieta el boton
+"Cargar datos de ejemplo" del menu lateral, se suman 3 circuitos y 3
+pilotos de prueba. En ese caso los circuitos pasan a ser 23 y la media
+da 5.093 y la mediana 5.278 (la moda sigue siendo 5.412). Los pilotos
+quedan igual en 18, porque los 3 de ejemplo ya estaban en el CSV y la
+importacion los omite por repetidos.
+
+
+--------------------------------------------------------------------
+ 4. INTERPRETACION DE LOS RESULTADOS
+--------------------------------------------------------------------
+
+CIRCUITOS (longitud, en km)
+
+La media (5.131) y la mediana (5.279) son muy parecidas: se llevan
+menos de 0.15 km, alrededor de un 3% de diferencia. Eso indica que la
+distribucion de longitudes es bastante simetrica y que no hay
+circuitos tan extremos como para arrastrar el promedio. La media queda
+apenas por debajo de la mediana porque los trazados urbanos cortos
+(Monaco, con 3.337 km, es el minimo) pesan un poco mas que el maximo
+de Belgica (7.004 km).
+
+La moda es clara: 5.412 km aparece 3 veces sobre 22 registros, o sea
+que la longitud mas tipica del calendario ronda los 5.4 km.
+
+En la columna de texto, la moda de tipo_pista es "Mixto" (7 de 22):
+es el tipo de circuito mas habitual del calendario.
+
+PILOTOS (edad, en anios)
+
+La media (27.278) y la mediana (27) tambien quedan casi iguales. Pero
+en este caso no es porque los datos sean parejos, sino porque conviven
+dos grupos que se compensan: varios pilotos jovenes de 19 a 22 anios
+y algunos veteranos de 41 y 44. La moda es 28 anios (3 pilotos), la
+edad mas repetida de la parrilla.
+
+La moda de nacionalidad es Reino Unido, con 4 pilotos sobre 18.
+
+
+--------------------------------------------------------------------
+ 5. NOTAS
+--------------------------------------------------------------------
+
+- No se uso groupby, tal como aclara la consigna.
+- No se agregaron graficos.
+- El archivo stratos.db no se sube al repositorio (esta en .gitignore),
+  porque es la base local que se genera sola. Por eso, al clonar el
+  proyecto, la aplicacion arranca vacia y hay que importar los CSV
+  desde la pestania "Importar CSV".
