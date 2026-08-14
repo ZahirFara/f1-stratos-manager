@@ -3,9 +3,8 @@
  Ampliacion del Integrador: datos propios y tendencia central
 ====================================================================
 
- Integrantes: [completar]
- Materia: Estadistica y Datos con Python - 5to Anio
-
+ Integrantes: [Zahir Fara, Guido Jacofsky, Lucas Park e Ignacio Britos ]
+ 
  Repositorio: https://github.com/ZahirFara/f1-stratos-manager
 
 
@@ -60,7 +59,7 @@ funciones de alta que ya existian.
 
 
 --------------------------------------------------------------------
- 3. COMO COMPROBAR QUE LA CONSIGNA ESTA COMPLETA
+ 3.LA CONSIGNA ESTA COMPLETA
 --------------------------------------------------------------------
 
 Los valores que figuran abajo son los que se obtienen arrancando con
