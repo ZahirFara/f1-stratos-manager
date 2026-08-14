@@ -1,6 +1,6 @@
 # F1 Stratos Manager — ORT Racing Team
 
-Sistema de gestión de una escudería de Fórmula 1 (temporada 2026): pilotos, monoplazas y calendario de circuitos, con persistencia en SQLite, interfaz en Streamlit y un módulo de análisis estadístico con Pandas.
+Sistema de gestión de una escudería de Fórmula 1 (temporada 2026): pilotos, monoplazas y calendario de circuitos, con persistencia en SQLite, interfaz en Streamlit y un módulo de análisis estadístico con Pandas. Dejamos un archivo de Instrucciones para leer antes de ejecutarlo.
 
 **Materia:** Estadística y Datos con Python — 5.º Año
 
