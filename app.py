@@ -278,7 +278,8 @@ def vista_estadisticas():
         if df.empty:
             st.info("No hay registros cargados. Importa el CSV desde la pestania anterior.")
             return
-        st.caption(f"{len(df)} registros leidos de la base con pandas.read_sql().")
+        st.caption(f"{len(df)} registros tomados de la base a traves del "
+                   "repository y analizados con Pandas.")
 
         resumen = stats.tendencia_central(df, config["columna_numerica"])
         if resumen is None:

@@ -51,7 +51,7 @@ Listo. Ya podés navegar por **Pilotos**, **Monoplazas**, **Calendario** y **Est
 
 ## Cómo está organizado el proyecto
 
-El SQL está aislado de la interfaz: `app.py` nunca escribe consultas, siempre pasa por la capa de datos.
+**Todo el SQL vive en `repository.py` y `db.py`.** Ningún otro archivo escribe consultas: ni `app.py`, ni `importador.py`, ni `estadisticas.py`. Los tres pasan siempre por la capa de datos.
 
 | Archivo | Qué hace |
 |---|---|
@@ -59,7 +59,7 @@ El SQL está aislado de la interfaz: `app.py` nunca escribe consultas, siempre p
 | `models.py` | Clases POO: `Piloto`, `Monoplaza`, `Circuito`. |
 | `repository.py` | Capa de datos: CRUD completo. Convierte filas → objetos con bucles. |
 | `importador.py` | Lee los CSV con `pandas.read_csv()` y da de alta cada fila usando `repository`. |
-| `estadisticas.py` | Calcula media, mediana y moda con Pandas (`pandas.read_sql()`). |
+| `estadisticas.py` | Calcula media, mediana y moda con Pandas, sobre los datos que devuelve `repository`. |
 | `app.py` | Interfaz Streamlit: navegación, filtros, formularios y validaciones. |
 | `datos/` | Los datasets propios en CSV. |
 
@@ -100,7 +100,9 @@ Después de importar, los registros nuevos se ven en las vistas de listado de **
 
 ## Parte 3 — Medidas de tendencia central
 
-`estadisticas.py` lee los datos ya cargados con `pandas.read_sql()` y calcula **media, mediana y moda** sobre la columna numérica de cada entidad, más la moda de una columna de texto. La pestaña **Análisis** los muestra rotulados, junto con un párrafo de interpretación que se arma a partir de los valores calculados (compara la media contra la mediana y mira cuántas veces se repite la moda), así que si cambian los datos cambia el texto.
+`estadisticas.py` toma los datos ya cargados en la base y calcula **media, mediana y moda** sobre la columna numérica de cada entidad, más la moda de una columna de texto. La pestaña **Análisis** los muestra rotulados, junto con un párrafo de interpretación que se arma a partir de los valores calculados (compara la media contra la mediana y mira cuántas veces se repite la moda), así que si cambian los datos cambia el texto.
+
+Las filas no se piden con una consulta propia: llegan desde las **mismas funciones de listado que ya usaba el CRUD** (`repo.listar_circuitos()`, `repo.listar_pilotos()`, `repo.listar_monoplazas()`), y con ellas se arma el DataFrame. De esa forma el cálculo se hace íntegramente con Pandas sobre los datos de la base, pero sin sacar el SQL de la capa que le corresponde. Es el mismo criterio que en la Parte 2, donde la importación reutiliza las funciones de alta en lugar de escribir sus propios `INSERT`.
 
 No se usó `groupby` ni se agregaron gráficos, tal como aclara la consigna.
 
@@ -135,3 +137,33 @@ En los circuitos, la media (5.131 km) y la mediana (5.279 km) se llevan menos de
 Con los pilotos aprendimos algo que no esperábamos. La media (27.278 años) y la mediana (27) también quedan casi iguales, y con el criterio anterior habríamos concluido que las edades están repartidas de forma pareja. Pero al mirar los datos vimos que no es así: conviven un grupo de pilotos muy jóvenes (de 19 a 22 años) con algunos veteranos de 41 y 44, y esos dos extremos se terminan compensando entre sí. La conclusión que nos llevamos es que **que la media y la mediana coincidan no garantiza que los datos sean homogéneos**; recién mirando el mínimo, el máximo y la moda (28 años, 3 pilotos) se entiende la forma real del conjunto.
 
 También nos sirvió para ver por qué la consigna insistía con armar un dataset más grande. Con los 3 registros de prueba que teníamos mientras programábamos el CRUD, las tres medidas no decían nada: la moda no existía porque ningún valor se repetía. Recién con 22 y 18 registros los cálculos empiezan a describir algo. En lo técnico, lo que más valoramos es que no tuvimos que reescribir nada de lo que ya andaba: la importación con Pandas reutiliza las mismas funciones de alta del CRUD, y el módulo de estadísticas lee de la base sin tocar la capa de datos. La separación en capas que habíamos hecho en la primera entrega hizo que agregar todo esto fuera cuestión de sumar dos archivos y una vista.
+
+---
+
+## Correcciones posteriores a la entrega
+
+### 20/08/2026 — El módulo de estadísticas rompía la separación de capas
+
+**El error.** `estadisticas.py` consultaba la base con SQL propio: tenía escritas sus consultas (`SELECT nombre_gp, pais, longitud_km, tipo_pista FROM circuitos`) y las ejecutaba con `pandas.read_sql()` abriendo su propia conexión. Eso contradecía lo que dice este mismo README —que el SQL vive únicamente en `repository.py` y `db.py`— y dejaba la capa de datos salteada justo en el archivo que agregamos en la ampliación. El código funcionaba, pero la arquitectura que veníamos sosteniendo desde la primera entrega ya no era cierta.
+
+**Cómo quedó.** `estadisticas.py` no escribe una sola línea de SQL ni abre conexiones. Las filas se piden a las funciones de listado que ya existían en el repository, las mismas que usan las vistas de listado de la app:
+
+```python
+def filas_circuitos():
+    """Reutiliza el listado del repository y arma una fila por circuito."""
+    return [{"nombre_gp": c.nombre_gp,
+             "pais": c.pais,
+             "longitud_km": c.longitud_km,
+             "tipo_pista": c.tipo_pista}
+            for c in repo.listar_circuitos()]
+
+
+def cargar_dataframe(nombre_dataset):
+    """Devuelve un DataFrame de pandas con los datos cargados en la base."""
+    config = DATASETS[nombre_dataset]
+    return pd.DataFrame(config["filas"](), columns=config["columnas"])
+```
+
+El cálculo de media, mediana y moda no se tocó: sigue siendo Pandas puro sobre el DataFrame, y los resultados son idénticos a los de antes. Lo único que cambió es de dónde salen las filas. Ahora la Parte 3 usa el mismo criterio que la Parte 2, donde la importación reutiliza `crear_circuito()` y `crear_piloto()` en vez de escribir sus propios `INSERT`.
+
+**Verificación.** Buscando `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `read_sql`, `.execute(` y `get_connection` en todos los `.py` del proyecto, las coincidencias aparecen solo en `repository.py` y `db.py`. Ni `app.py`, ni `importador.py`, ni `estadisticas.py` tienen una sola.

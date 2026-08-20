@@ -53,9 +53,11 @@ Agregados en esta ampliacion:
 En app.py se agrego la seccion "Estadisticas" del menu lateral, que
 tiene dos pestanias: "Importar CSV" y "Analisis".
 
-La separacion de capas se mantiene: el SQL sigue estando unicamente en
-repository.py y db.py. importador.py no escribe SQL, llama a las
-funciones de alta que ya existian.
+La separacion de capas se mantiene: el SQL vive unicamente en
+repository.py y db.py. Ni importador.py ni estadisticas.py escriben
+consultas: el primero llama a las funciones de alta que ya existian
+(crear_circuito, crear_piloto) y el segundo a las de listado
+(listar_circuitos, listar_pilotos, listar_monoplazas).
 
 
 --------------------------------------------------------------------
@@ -139,7 +141,10 @@ PARTE 3 - Medidas de tendencia central
 
 En la app: menu lateral -> Estadisticas -> pestania "Analisis"
 
-Los datos se leen de la base de datos con pandas.read_sql().
+Los datos salen de la base a traves de las funciones de listado del
+repository (listar_circuitos, listar_pilotos, listar_monoplazas) y con
+esas filas se arma el DataFrame. El calculo es 100% Pandas y
+estadisticas.py no escribe SQL.
 
   Con "Circuitos" seleccionado (columna longitud_km, en km):
 
@@ -165,8 +170,8 @@ calculados (compara la media contra la mediana y mira cuantas veces se
 repite la moda), asi que si cambian los datos cambia el texto.
 
 Al final de la pestania, el desplegable "Ver los datos analizados"
-muestra la tabla que Pandas leyo de la base, para verificar que el
-calculo se hizo sobre los datos reales.
+muestra la tabla que Pandas armo con los datos de la base, para
+verificar que el calculo se hizo sobre los datos reales.
 
 ACLARACION SOBRE LOS NUMEROS: si antes de importar se aprieta el boton
 "Cargar datos de ejemplo" del menu lateral, se suman 3 circuitos y 3

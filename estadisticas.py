@@ -1,17 +1,51 @@
 """Parte 3 de la ampliacion: medidas de tendencia central con pandas.
 
-Lee con pandas.read_sql() los datos ya cargados en la base y calcula media,
-mediana y moda sobre una columna numerica. Tambien arma el parrafo de
-interpretacion de esos valores. No contiene logica de interfaz.
+Arma un DataFrame con los datos que ya estan cargados en la base y calcula
+media, mediana y moda sobre una columna numerica. Tambien arma el parrafo
+de interpretacion de esos valores.
+
+Este modulo NO escribe SQL: las filas llegan desde las mismas funciones de
+listado que ya usaba el CRUD (repository.listar_circuitos, listar_pilotos y
+listar_monoplazas), de manera que las consultas siguen viviendo unicamente
+en repository.py y db.py. Tampoco contiene logica de interfaz.
 """
 import pandas as pd
-from db import get_connection
+import repository as repo
 
-# Configuracion de cada dataset analizable: consulta, columna numerica a
-# analizar y columna de texto sobre la que ademas se calcula la moda.
+
+# ------------- objetos del repository -> filas para el DataFrame -------------
+def filas_circuitos():
+    """Reutiliza el listado del repository y arma una fila por circuito."""
+    return [{"nombre_gp": c.nombre_gp,
+             "pais": c.pais,
+             "longitud_km": c.longitud_km,
+             "tipo_pista": c.tipo_pista}
+            for c in repo.listar_circuitos()]
+
+
+def filas_pilotos():
+    """Reutiliza el listado del repository y arma una fila por piloto."""
+    return [{"nombre": p.nombre,
+             "apellido": p.apellido,
+             "nacionalidad": p.nacionalidad,
+             "edad": p.edad}
+            for p in repo.listar_pilotos()]
+
+
+def filas_monoplazas():
+    """Reutiliza el listado del repository y arma una fila por monoplaza."""
+    return [{"modelo": m.modelo,
+             "motor": m.motor,
+             "potencia": m.potencia}
+            for m in repo.listar_monoplazas()]
+
+
+# Configuracion de cada dataset analizable: de donde salen las filas, que
+# columna numerica se analiza y sobre que columna de texto se saca la moda.
 DATASETS = {
     "Circuitos": {
-        "consulta": "SELECT nombre_gp, pais, longitud_km, tipo_pista FROM circuitos",
+        "filas": filas_circuitos,
+        "columnas": ["nombre_gp", "pais", "longitud_km", "tipo_pista"],
         "columna_numerica": "longitud_km",
         "etiqueta_numerica": "Longitud del circuito",
         "unidad": "km",
@@ -19,7 +53,8 @@ DATASETS = {
         "etiqueta_categorica": "Tipo de pista",
     },
     "Pilotos": {
-        "consulta": "SELECT nombre, apellido, nacionalidad, edad FROM pilotos",
+        "filas": filas_pilotos,
+        "columnas": ["nombre", "apellido", "nacionalidad", "edad"],
         "columna_numerica": "edad",
         "etiqueta_numerica": "Edad de los pilotos",
         "unidad": "anios",
@@ -27,7 +62,8 @@ DATASETS = {
         "etiqueta_categorica": "Nacionalidad",
     },
     "Monoplazas": {
-        "consulta": "SELECT modelo, motor, potencia FROM monoplazas",
+        "filas": filas_monoplazas,
+        "columnas": ["modelo", "motor", "potencia"],
         "columna_numerica": "potencia",
         "etiqueta_numerica": "Potencia de los monoplazas",
         "unidad": "hp",
@@ -38,11 +74,9 @@ DATASETS = {
 
 
 def cargar_dataframe(nombre_dataset):
-    """Devuelve un DataFrame con los datos de la base (pandas.read_sql)."""
-    conn = get_connection()
-    df = pd.read_sql(DATASETS[nombre_dataset]["consulta"], conn)
-    conn.close()
-    return df
+    """Devuelve un DataFrame de pandas con los datos cargados en la base."""
+    config = DATASETS[nombre_dataset]
+    return pd.DataFrame(config["filas"](), columns=config["columnas"])
 
 
 def formatear(valor):
